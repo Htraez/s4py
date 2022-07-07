@@ -1,13 +1,17 @@
 import weakref
 import io
 import contextlib
+
+
 class FormatException(Exception):
     pass
+
 
 class WeakIdDict(dict):
     # This is completely untested
     def __init__(self):
         super().__init__()
+
     def __getitem__(self, key):
         try:
             obj, val = super().__getitem__(id(key))
@@ -18,14 +22,17 @@ class WeakIdDict(dict):
             return val
         except KeyError:
             raise KeyError(key)
+
     def __setitem__(self, key, val):
         keyid = id(key)
+
         def cb():
             super().__delitem__(keyid)
         keyref = weakref.ref(key, cb)
         super().__setitem__(keyid, (keyref, val))
         del key # Drop key from locals so that we don't hold on to a
                 # reference in the lambda's closure
+
     def __delitem__(self, key):
         super().__delitem__(id(key))
 
@@ -35,6 +42,7 @@ class WeakIdDict(dict):
         if super().__getitem__(id(key))[0]() is not key:
             return False
         return True
+
 
 class LazyProperty:
     """A property that lazily evaluates and caches its result."""
@@ -48,9 +56,11 @@ class LazyProperty:
             res = self.thunk(instance)
             setattr(instance, self.thunk.__name__, res)
             return res
+
     def __del__(self, instance, owner):
         if instance is not None:
             pass
+
 
 class Thunk:
     """A lazily-evaluated value"""
@@ -66,8 +76,10 @@ class Thunk:
             self.setp = True
         return self._value
 
+
 class BinPacker:
     writable = False
+
     def __init__(self, bstr, mode="r"):
         if mode == 'w':
             self.writable = True
@@ -86,6 +98,7 @@ class BinPacker:
     @property
     def off(self):
         return self.raw.tell()
+
     @off.setter
     def off(self, val):
         if val <= self.raw_len or self.writable:
@@ -113,8 +126,10 @@ class BinPacker:
 
     def put_raw_bytes(self, bstr):
         self.raw.write(bstr)
+
     def _put_int(self, i, len, signedp):
         self.put_raw_bytes(i.to_bytes(len, "little", signed=signedp))
+
     def put_int8(self, i):   self._put_int(i, 1, True)
     def put_int16(self, i):  self._put_int(i, 2, True)
     def put_int32(self, i):  self._put_int(i, 4, True)

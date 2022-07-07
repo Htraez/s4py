@@ -4,8 +4,10 @@ from collections import namedtuple
 from .abstractpackage import AbstractPackage
 from .. import resource
 
+
 class FileLocator(namedtuple("FileLocator", "filename")):
     pass
+
 
 class DirPackage(AbstractPackage):
     """A dirpackage is the most versatile form of package: it is the only
@@ -18,6 +20,7 @@ class DirPackage(AbstractPackage):
         """The config file is completely overridden by any config file that
         already exists in the directory.
         """
+        super().__init__()
 
         self.path = os.path.abspath(path)
         if mode == "r":

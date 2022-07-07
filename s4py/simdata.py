@@ -6,7 +6,6 @@ from collections import namedtuple
 from . import fnv1
 from . import resource
 from . import utils
-import contextlib
 import struct
 
 import yaml

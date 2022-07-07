@@ -1,5 +1,6 @@
 import abc
-from .. import resource
+from .. import resource, stbl
+
 
 class AbstractPackage(metaclass=abc.ABCMeta):
 

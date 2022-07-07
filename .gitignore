@@ -6,3 +6,5 @@ Untitled*.ipynb
 *.egg
 setuptools-*
 *.egg-info
+
+tests/assets/*

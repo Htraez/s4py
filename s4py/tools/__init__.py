@@ -1,7 +1,7 @@
-import abc
 import click
 
 from .. import resource
+
 
 @click.group()
 @click.option("--idformat",

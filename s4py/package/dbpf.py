@@ -6,15 +6,18 @@ from .abstractpackage import AbstractPackage
 from .. import resource
 from .. import utils
 
+
 class DbpfLocator(namedtuple("DbpfLocator", 'offset raw_len compression')):
     @property
     def deleted(self):
         return self.compression[0] == 0xFFE0
 
+
 class _DbpfReader(utils.BinPacker):
     _Header = namedtuple('_Header',
                          'file_version user_version ctime ' +
                          'mtime index_count index_pos index_size')
+
     @property
     def header(self):
         if hasattr(self, "_header"):
@@ -26,7 +29,7 @@ class _DbpfReader(utils.BinPacker):
                     "Not a valid DBPF file; invalid magic")
 
             fileVersion = (self.get_uint32(), self.get_uint32())
-            if fileVersion != (2,1):
+            if fileVersion != (2, 1):
                 raise utils.FormatException("Only DBPF v2.1 is supported")
 
             userVersion = (self.get_uint32(), self.get_uint32())
@@ -45,10 +48,15 @@ class _DbpfReader(utils.BinPacker):
                 indexRecordPos = indexRecordPosHigh
             else:
                 indexRecordPos = indexRecordPosLow
-            self._header = self._Header(fileVersion, userVersion,
-                                        mnCreationTime, mnUpdatedTime,
-                                        indexRecordEntryCount, indexRecordPos,
-                                        indexRecordSize)
+            self._header = self._Header(
+                fileVersion,
+                userVersion,
+                mnCreationTime,
+                mnUpdatedTime,
+                indexRecordEntryCount,
+                indexRecordPos,
+                indexRecordSize
+            )
             return self._header
 
     def get_index(self, package=None):
@@ -66,15 +74,15 @@ class _DbpfReader(utils.BinPacker):
 
         with self.at(header.index_pos):
             flags = self.get_uint32()
-            if flags & _CONST_TYPE:        entry_type    = self.get_uint32()
-            if flags & _CONST_GROUP:       entry_group   = self.get_uint32()
+            if flags & _CONST_TYPE:        entry_type = self.get_uint32()
+            if flags & _CONST_GROUP:       entry_group = self.get_uint32()
             if flags & _CONST_INSTAMCE_EX: entry_inst_ex = self.get_uint32()
 
             for _ in range(header.index_count):
                 if not flags & _CONST_TYPE:
-                    entry_type    = self.get_uint32()
+                    entry_type = self.get_uint32()
                 if not flags & _CONST_GROUP:
-                    entry_group   = self.get_uint32()
+                    entry_group = self.get_uint32()
                 if not flags & _CONST_INSTAMCE_EX:
                     entry_inst_ex = self.get_uint32()
                 entry_inst = self.get_uint32()
@@ -84,7 +92,7 @@ class _DbpfReader(utils.BinPacker):
                 if entry_size & 0x80000000:
                     entry_compressed = (self.get_uint16(), self.get_uint16())
                 else:
-                    entry_compressed = (0,1)
+                    entry_compressed = (0, 1)
                 entry_size &= 0x7FFFFFFF
                 locator = DbpfLocator(entry_pos, entry_size, entry_compressed)
                 with self.at(None):
@@ -96,6 +104,7 @@ class _DbpfReader(utils.BinPacker):
                         entry_size_decompressed,
                         package)
 
+
 class _DbpfWriter:
     def __init__(self, fstream):
         self.f = utils.BinPacker(fstream, mode="w")
@@ -103,12 +112,14 @@ class _DbpfWriter:
         # bytes, but all the RE'd docs say 96. Treating an extra 4
         # bytes as reserved won't hurt, so we just use 96 here
         self.f.off = 96
+
     def put_rsrc(self, rid, content):
         off = self.f.off
         zcontent = zlib.compress(content)
         self.f.put_raw_bytes(zcontent)
         locator = DbpfLocator(off, len(zcontent), (0x5A42, 1))
         return locator
+
     def write_index(self, idx):
         with self.f.at(None):
             idx_start = self.f.off
@@ -120,7 +131,7 @@ class _DbpfWriter:
             # group/type/etc; it's fairly unlikely that it will be
             # possible to save a significant amount of space unless
             # the file is very small, in which case who cares?
-            self.f.put_uint32(0) # No flags
+            self.f.put_uint32(0)  # No flags
 
             for rsrc in idx.values():
                 idx_count += 1
@@ -130,7 +141,7 @@ class _DbpfWriter:
                 self.f.put_uint32(rsrc.id.instance & 0xFFFFFFFF)
                 self.f.put_uint32(rsrc.locator.offset)
                 if rsrc.locator.raw_len & 0x80000000 != 0:
-                    raise FormatException("File must be smaller than 2GB")
+                    raise RuntimeError("File must be smaller than 2GB")
                 # We always compress, so we always need the ExtendedCompression
                 # bit set
                 self.f.put_uint32(rsrc.locator.raw_len | 0x80000000)
@@ -138,9 +149,10 @@ class _DbpfWriter:
                 self.f.put_uint16(rsrc.locator.compression[0])
                 self.f.put_uint16(rsrc.locator.compression[1])
             idx_end = self.f.off
-        header = _DbpfReader._Header((2,1), (0,0), 0,0,
+        header = _DbpfReader._Header((2, 1), (0, 0), 0, 0,
                                      idx_count, idx_start, idx_end - idx_start)
         self.put_header(header)
+
     def put_header(self, header):
         with self.f.at(0):
             self.f.put_raw_bytes(b'DBPF')
@@ -162,6 +174,8 @@ class _DbpfWriter:
             self.f.put_uint32(header.index_pos)
             for _ in range(6):
                 self.f.put_uint32(0)
+
+
 class DbpfPackage(AbstractPackage):
     """A Sims4 DBPF file. This is the format in Sims4 packages, worlds, etc"""
 
@@ -178,6 +192,7 @@ class DbpfPackage(AbstractPackage):
                 self.file = _DbpfWriter(open(name, "w+b"))
                 self._index_cache = {}
                 self.writable = True
+
     def scan_index(self, filter=None):
         if self._index_cache is None:
             self._index_cache = {}
@@ -202,7 +217,7 @@ class DbpfPackage(AbstractPackage):
             ibuf = self.file.get_raw_bytes(item.locator.raw_len)
 
         if item.locator.compression[0] == 0:
-            return ibuf # uncompressed
+            return ibuf  # uncompressed
         elif item.locator.compression[0] == 0xFFFE:
             # BUG: I'm guessing "streamable compression" is the same
             # as RefPack, with a limited buffer size. This may or may
@@ -223,6 +238,7 @@ class DbpfPackage(AbstractPackage):
     def commit(self):
         if self.writable:
             self.file.write_index(self._index_cache)
+
     def put(self, rid, content):
         if self.writable:
             locator = self.file.put_rsrc(rid, content)
@@ -230,9 +246,11 @@ class DbpfPackage(AbstractPackage):
                 rid, locator, len(content), self)
         else:
             raise TypeError("Not a writable package")
-    def close(close):
+
+    def close(self):
         super().close()
         self.file.close()
+
 
 def decodeRefPack(ibuf):
     """Decode the DBPF compression. ibuf must quack like a bytes"""
@@ -244,7 +262,7 @@ def decodeRefPack(ibuf):
     if ibuf[1] != 0xFB:
         raise utils.FormatException("Invalid compressed data")
     iptr = 2
-    osize = 0 # output size
+    osize = 0  # output size
     for _ in range(4 if flags & 0x80 else 3):
         osize = (osize << 8) | ibuf[iptr]
         iptr += 1
@@ -256,25 +274,32 @@ def decodeRefPack(ibuf):
         # I.e., copyoffset=0 ==> copying starts at obuf[optr-1]
 
         # Read a control code
-        cc0 = ibuf[iptr]; iptr+=1
+        cc0 = ibuf[iptr]
+        iptr += 1
         if cc0 <= 0x7F:
-            cc1 = ibuf[iptr]; iptr+=1
-            cc = (cc0,cc1)
+            cc1 = ibuf[iptr]
+            iptr += 1
+            cc = (cc0, cc1)
             numPlaintext = cc0 & 0x03
             numToCopy = ((cc0 & 0x1C) >> 2) + 3
             copyOffset = ((cc0 & 0x60) << 3) + cc1
         elif cc0 <= 0xBF:
-            cc1 = ibuf[iptr]; iptr+=1
-            cc2 = ibuf[iptr]; iptr+=1
-            cc = (cc0,cc1,cc2)
+            cc1 = ibuf[iptr]
+            iptr += 1
+            cc2 = ibuf[iptr]
+            iptr += 1
+            cc = (cc0, cc1, cc2)
             numPlaintext = (cc1 & 0xC0) >> 6
             numToCopy = (cc0 & 0x3F) + 4
             copyOffset = ((cc1 & 0x3F) << 8) + cc2
         elif cc0 <= 0xDF:
-            cc1 = ibuf[iptr]; iptr+=1
-            cc2 = ibuf[iptr]; iptr+=1
-            cc3 = ibuf[iptr]; iptr+=1
-            cc = (cc0,cc1,cc2,cc3)
+            cc1 = ibuf[iptr]
+            iptr += 1
+            cc2 = ibuf[iptr]
+            iptr += 1
+            cc3 = ibuf[iptr]
+            iptr += 1
+            cc = (cc0, cc1, cc2, cc3)
             numPlaintext = cc0 & 0x03
             numToCopy = ((cc0 & 0x0C) << 6) + cc3 + 5
             copyOffset = ((cc0 & 0x10) << 12) + (cc1 << 8) + cc2
@@ -288,7 +313,7 @@ def decodeRefPack(ibuf):
             numToCopy = 0
 
         # Copy from source
-        obuf[optr:optr+numPlaintext] = ibuf[iptr:iptr+numPlaintext]
+        obuf[optr:optr + numPlaintext] = ibuf[iptr:iptr + numPlaintext]
         iptr += numPlaintext
         optr += numPlaintext
 

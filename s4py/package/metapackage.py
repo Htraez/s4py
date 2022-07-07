@@ -1,5 +1,5 @@
 from .abstractpackage import AbstractPackage
-from .. import resource
+
 
 class MetaPackage(AbstractPackage):
     """A stack of packages, where the last package added is the first
@@ -39,8 +39,8 @@ class MetaPackage(AbstractPackage):
 
     def flush_index_cache(self):
         self._entry_cache = None
+
     def _reset_caches(self):
-        from .. import stbl
         self._entry_cache = {}
         for package in self._package_list:
             for id in package.scan_index():

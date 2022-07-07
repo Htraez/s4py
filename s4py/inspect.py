@@ -6,14 +6,17 @@ import yaml
 
 type_registry = {}
 
+
 def find_inspector(type_id):
     return type_registry.get(type_id, Inspector)
+
 
 def inspects(type_id):
     def wrapper(cls):
         type_registry[type_id] = cls
         return cls
     return wrapper
+
 
 class Inspector:
     """An inspector presents various aspects of a Sims4 resource in a
@@ -53,6 +56,7 @@ class SimdataInspector(Inspector):
     def pprint(self, stream):
         yaml.dump(self.sd.content, stream)
 
+
 @inspects(0x220557DA)
 @inspects('stbl')
 class StblInspector(Inspector):
@@ -68,6 +72,7 @@ class StblInspector(Inspector):
     def pprint(self, stream):
         for key,val in self.stbl.items():
             stream.write("{0:08x} {1!r}\n".format(key,val))
+
 
 class XmlInspector(Inspector):
     type_code = "XML"

@@ -1,29 +1,33 @@
 import click
-import os
-import os.path
 import sys
 from .. import inspect
 from .. import package
 from .. import tools
 from ..resource import ResourceID, ResourceFilter
 
+
 @tools.main.group(name="package")
 def pkg():
     pass
 
+
 class AnyFilter:
     def __init__(self, filters):
         self.filters = list(filters)
+
     def add(self, filter):
         self.filters.append(filter)
         return self
+
     def match(self, target):
         for filter in self.filters:
             if filter.match(target):
                 return True
         return False
+
     def __str__(self):
         return "(%s)" % (" | ".join(str(x) for x in self.filters))
+
 
 def parseFilter(s):
     """Parse a filter from a string. The format is
@@ -71,6 +75,7 @@ def cat(pkg, item, type, decode):
     else:
         sys.stdout.buffer.write(content)
 
+
 @pkg.command(help="Convert between package formats")
 @click.option("--filter", multiple=True)
 @click.option('-o','--out', help="Output directory", default="gen")
@@ -87,6 +92,7 @@ def convert(file, filter, out):
         print(rid.as_filename())
         outpkg.put(rid, dbfile[rid].content)
     outpkg.commit()
+
 
 @pkg.command(help="list files in a package")
 @click.option("--filter", multiple=True)

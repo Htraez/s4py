@@ -2,6 +2,7 @@ import click
 from .. import tools
 from .. import fnv1
 
+
 @tools.main.command()
 @click.option("--bits", type=int, help="Hash size in bits. Must be 32 or 64")
 @click.argument("string")
