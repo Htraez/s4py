@@ -9,6 +9,7 @@ if __name__ == "__main__":
     dest_stbl = os.path.join("tests/assets/", "out.stbl")
     src_pkg = os.path.join("tests/assets/", "FontFix.package")
     dest_gfx = os.path.join("tests/assets/", "out.gfx")
+    out_pkg = os.path.join("tests/assets/", "out.package")
 
     # Test import from STBL and from exported CSV
     stbl = StringTable.read(path=src_stbl)
@@ -27,5 +28,9 @@ if __name__ == "__main__":
     pkg = Package.from_package(src_pkg)
     pkg.list()
     pkg.export(instance_id=6664397830470224506, path=dest_gfx)
-    # pkg.insert(instance=6664397830470224506, type=ResourceType.GFX)
+    resource = pkg.get(instance_id=6664397830470224506)
+
+    new_pkg = Package.create_empty(out_pkg)
+    new_pkg.insert(resource=resource)
+
     pass

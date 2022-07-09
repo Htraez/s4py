@@ -8,7 +8,10 @@ from s4sdk.package.dirpackage import DirPackage
 from s4sdk import metadata
 from s4sdk.resource.abc import Resource
 from s4sdk.resource import Resource as _Resource, ResourceID, ResourceFilter
+from s4sdk.resource.stbl import StringTable, StringTableMetadata
+from s4sdk.resource.binary import BinaryResource
 import pandas as pd
+from typing import List
 
 
 def open_package(filename, mode="r"):
@@ -64,23 +67,37 @@ class Package:
             for idx, instance in enumerate(self.instances)
         }, orient="index")
 
-    def get(self, instance_id: int) -> Resource:
+    def get(self, instance_id: int | List[int]) -> Resource:
+        if not isinstance(instance_id, list):
+            instance_id = [instance_id]
         for instance in self.instances:
-            if instance.instance == instance_id:
+            if instance.instance in instance_id:
+                instance_id.remove(instance.instance)
                 _resource = self.dbfile[instance]
-                #TODO: convert _Resource to Resource
+                if _resource.id.type == metadata.ResourceType.STBL.value:
+                    return StringTable.read_bytes(bstr=_resource.content)
+                else:
+                    return BinaryResource(
+                        type=metadata.classify_type(instance.type),
+                        group=instance.group,
+                        instance=instance.instance,
+                        content=_resource.content
+                    )
+        if instance_id:
+            raise ValueError(f"Cannot find these instance in the package: {instance_id}")
 
-    def insert(self, type: metadata.ResourceType, instance: int, resource: Resource):
-        rid = ResourceID(group=0, instance=instance, type=type.value)
-        self.dbfile.put(rid=rid, content=resource.content)
-        self.dbfile.commit()
+    def insert(self, resource: Resource | List[Resource]):
+        if not isinstance(resource, list):
+            resource = [resource]
+        for rsrc in resource:
+            self.dbfile.put(rid=rsrc.rid, content=rsrc.content)
+            self.dbfile.commit()
 
-    def remove(self, instance_id: str):
+    def remove(self, instance_id: int | List[int]):
+        if not isinstance(instance_id, list):
+            instance_id = [instance_id]
         pass
 
     def export(self, instance_id: int, path: str):
         res = self.get(instance_id=instance_id)
         res.write(path)
-
-    def repack(self, destination: str, file_name: str):
-        pass

@@ -1,7 +1,7 @@
 import pandas as pd
 
 from s4sdk.resource.abc import Resource
-from s4sdk import utils
+from s4sdk import utils, metadata
 from dataclasses import dataclass
 from collections import defaultdict
 
@@ -34,20 +34,23 @@ class StringTableMetadata:
 
 
 class StringTable(Resource):
-    def __init__(self):
-        super().__init__()
-        self.meta_data = StringTableMetadata.from_empty(num_entries=0, str_length=0)
-        self.entries: pd.DataFrame = pd.DataFrame()
+    def __init__(self, meta_data=None, entries=None):
+        super().__init__(type=metadata.ResourceType.STBL)
+        self.meta_data = meta_data or StringTableMetadata.from_empty(num_entries=0, str_length=0)
+        self.entries: pd.DataFrame = entries if entries is not None else pd.DataFrame()
 
     @classmethod
     def read(cls, path: str):
         bstr = open(path, "rb").read()
-        instance = cls()
+        return StringTable.read_bytes(bstr=bstr)
+
+    @classmethod
+    def read_bytes(cls, bstr: bytes):
         b_pack = utils.BinPacker(bstr)
-        instance.meta_data = StringTableMetadata.from_binary_pack(b_pack=b_pack)
+        meta_data = StringTableMetadata.from_binary_pack(b_pack=b_pack)
 
         content = defaultdict(dict)
-        for row in range(instance.meta_data.num_entries):
+        for row in range(meta_data.num_entries):
             key_hash = b_pack.get_uint32()
             flags = b_pack.get_uint8()
             length = b_pack.get_uint16()
@@ -56,8 +59,8 @@ class StringTable(Resource):
             content["flags"][row] = flags
             content["length"][row] = length
             content["val"][row] = val
-        instance.entries = pd.DataFrame.from_dict(content)
-        return instance
+        entries = pd.DataFrame.from_dict(content)
+        return cls(meta_data=meta_data, entries=entries)
 
     @classmethod
     def read_csv(cls, path: str):
@@ -76,10 +79,10 @@ class StringTable(Resource):
 
         num_entries = n
         str_len = total_len + num_entries
-        instance = cls()
-        instance.meta_data = StringTableMetadata.from_empty(num_entries=num_entries, str_length=str_len)
-        instance.entries = content
-        return instance
+
+        meta_data = StringTableMetadata.from_empty(num_entries=num_entries, str_length=str_len)
+        entries = content
+        return cls(meta_data=meta_data, entries=entries)
 
     def write(self, path: str):
         b_pack = self.pack_bytes()

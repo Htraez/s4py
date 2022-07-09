@@ -1,8 +1,13 @@
 [tool.poetry]
-name = "s4py"
-version = "0.1.0"
+name = "s4sdk"
+version = "0.1.1a1"
 description = ""
 authors = ["Roy Chotechuang <htraexd@gmail.com>"]
+
+include = [
+    "LICENSE",
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"

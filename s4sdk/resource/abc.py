@@ -4,11 +4,11 @@ from s4sdk.resource import ResourceID
 
 
 class Resource(ABC):
-    def __init__(self):
-        self._group = 0
-        self._instance = None
-        self._bstr = None
-        self._type = None
+    def __init__(self, type: metadata.ResourceType, content: bytes = None, group: int = 0, instance: int = None):
+        self._group = group
+        self._instance = instance
+        self._bstr = content
+        self._type = type.value
 
     @classmethod
     @abstractmethod
@@ -16,7 +16,7 @@ class Resource(ABC):
         pass
 
     @property
-    def rid(self) -> str:
+    def rid(self) -> ResourceID:
         return ResourceID(group=self.group, instance=self.instance, type=self.type)
 
     @property
