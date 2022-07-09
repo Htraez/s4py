@@ -1,4 +1,5 @@
-from s4py.stbl import StringTable
+from s4sdk import Package, StringTable
+from s4sdk.metadata import ResourceType
 import os
 
 
@@ -6,17 +7,25 @@ if __name__ == "__main__":
     src_stbl = os.path.join("tests/assets/", "S4_220557DA_00000000_0054935F2685AD48%%+STBL.stbl")
     dest_csv = os.path.join("tests/assets/", "out.csv")
     dest_stbl = os.path.join("tests/assets/", "out.stbl")
+    src_pkg = os.path.join("tests/assets/", "FontFix.package")
+    dest_gfx = os.path.join("tests/assets/", "out.gfx")
 
     # Test import from STBL and from exported CSV
-    stbl = StringTable.from_stbl(stbl_path=src_stbl)
+    stbl = StringTable.read(path=src_stbl)
     print(stbl.meta_data)
-    stbl.as_csv(path=dest_csv)
-    stbl.from_csv(path=dest_csv)
+    stbl.write_csv(path=dest_csv)
+    stbl.read_csv(path=dest_csv)
     print(stbl.meta_data)
 
     # Test export to STBL
-    stbl.as_stbl(path=dest_stbl)
+    stbl.write(path=dest_stbl)
 
     # Test read exported STBL
-    new = StringTable.from_stbl(stbl_path=dest_stbl)
+    new = StringTable.read(path=dest_stbl)
     print(new.meta_data)
+
+    pkg = Package.from_package(src_pkg)
+    pkg.list()
+    pkg.export(instance_id=6664397830470224506, path=dest_gfx)
+    # pkg.insert(instance=6664397830470224506, type=ResourceType.GFX)
+    pass

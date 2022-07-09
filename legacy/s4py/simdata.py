@@ -10,15 +10,16 @@ import struct
 
 import yaml
 
+
 class FormatException(Exception):
     pass
+
 
 _dword = struct.Struct("=I")
 
 
-
 class SimData:
-    "An object that is beholden to a schema"
+    """An object that is beholden to a schema"""
 
     # These are not directly accessible...
     HIDDEN_MEMBERS = frozenset((
@@ -56,6 +57,7 @@ class SimData:
             return AttributeError("This object's instance members are hidden.")
         else:
             return super().__getattribute__(name)
+
     def __setattribute__(self, name, value):
         schema_dict = super().__getattribute__('schema_dict')
         value_dict = super().__getattribute__('value_dict')
@@ -73,6 +75,7 @@ class SimData:
             value_dict[name] = value
         else:
             raise AttributeError("%s not found in schema" % (name,))
+
     def __getitem__(self, name):
         value_dict = super().__getattribute__('value_dict')
         if name in value_dict:
@@ -87,16 +90,21 @@ class SimData:
     def __dir__(self):
         return iter(super().__getattribute__("schema_dict"))
 
+
 def _represent_SimData(dumper, sd):
     mapping = {key:sd[key]
                for key in super(SimData, sd).__getattribute__('value_dict').keys()}
     return dumper.represent_mapping('!s4/tuning', mapping)
+
+
 yaml.add_representer(SimData, _represent_SimData)
+
 
 class SimDataReader(utils.BinPacker):
     _TableData = namedtuple("_TableData", "name schema data_type row_size row_pos row_count")
     _Schema = namedtuple("_Schema", "name schema_hash size columns")
     _SchemaColumn = namedtuple("_SchemaColumn", "name data_type flags offset schema_pos")
+
     def __init__(self, bstr):
         super().__init__(bstr)
         if bstr[0:4] != b'DATA':
@@ -119,8 +127,7 @@ class SimDataReader(utils.BinPacker):
 
         self.off = tablePos
 
-        self.patchups = [] # A set of closures that are called with no
-                           # arguments at the end of the parse
+        self.patchups = [] # A set of closures that are called with no arguments at the end of the parse
         for _ in range(numTables):
             tableData.append(self._readTableHdr())
 
@@ -138,7 +145,6 @@ class SimDataReader(utils.BinPacker):
         self.tables = list(map(self._readTable, tableData))
         for patch in self.patchups:
             patch()
-
 
     def _readTableHdr(self):
         name = self.get_relstring()
@@ -255,6 +261,7 @@ class SimDataReader(utils.BinPacker):
             shash = self.get_uint32()
             # TODO: Validate hash
             return res.decode('utf-8')
+
         elif datatype == 13:    # OBJECT
             self.align(4)
             off = self.get_off32()
@@ -262,6 +269,7 @@ class SimDataReader(utils.BinPacker):
             def thunk():
                 return self.tables[tbl_idx][row_slice][0]
             return utils.Thunk(thunk)
+
         elif datatype == 14:    # VECTOR
             self.align(4)
             off = self.get_off32()
@@ -274,28 +282,35 @@ class SimDataReader(utils.BinPacker):
                 def thunk():
                     return self.tables[tbl_idx][row_slice]
                 return utils.Thunk(thunk)
+
         elif datatype == 15:    # FLOAT2
             self.align(4)
             return struct.unpack("<ff", self.get_raw_bytes(8))
+
         elif datatype == 16:    # FLOAT3
             self.align(4)
             return struct.unpack("<fff", self.get_raw_bytes(12))
+
         elif datatype == 17:    # FLOAT4
             self.align(4)
             return struct.unpack("<ffff", self.get_raw_bytes(16))
+
         elif datatype == 18:    # TABLESETREFERENCE
             self.align(8)
             return ('tablesetref', self.get_uint64())
+
         elif datatype == 19:    # RESOURCEKEY
             self.align(8)
             instance = self.get_uint64()
             typ = self.get_uint32()
             group = self.get_uint32()
             return resource.ResourceID(group, instance, typ)
+
         elif datatype == 20:    # LOCKEY
             self.align(4)
             # I'm pretty sure this refers to an stbl
             return ('lockey', self.get_uint32())
+
         else:
             # Datatype 21 is defined as "TYPE_UNDEFINED". This is not
             # in any way useful.

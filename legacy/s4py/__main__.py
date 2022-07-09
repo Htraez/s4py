@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 def main():
-    import s4py.tools.package
-    import s4py.tools.misc
+    from legacy import s4py
     s4py.tools.main()
 
 

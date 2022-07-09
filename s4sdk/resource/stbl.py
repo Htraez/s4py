@@ -1,7 +1,9 @@
-from . import utils
+import pandas as pd
+
+from s4sdk.resource.abc import Resource
+from s4sdk import utils
 from dataclasses import dataclass
 from collections import defaultdict
-import pandas as pd
 
 
 @dataclass
@@ -31,24 +33,34 @@ class StringTableMetadata:
         return cls(magic=b'STBL', version=5, compressed=0, num_entries=num_entries, str_length=str_length)
 
 
-class StringTable:
-    def __init__(self, meta_data: StringTableMetadata = None, content: pd.DataFrame = None, bstr: bytes = None):
-        if bstr is not None:
-            b_pack = utils.BinPacker(bstr)
-            self.meta_data = StringTableMetadata.from_binary_pack(b_pack)
-            self.content = self._unpack_content(b_pack)
-        elif meta_data is not None and content is not None:
-            self.meta_data = meta_data
-            self.content = content
-        else:
-            raise ValueError()
+class StringTable(Resource):
+    def __init__(self):
+        super().__init__()
+        self.meta_data = StringTableMetadata.from_empty(num_entries=0, str_length=0)
+        self.entries: pd.DataFrame = pd.DataFrame()
 
     @classmethod
-    def from_stbl(cls, stbl_path: str):
-        return cls(bstr=open(stbl_path, "rb").read())
+    def read(cls, path: str):
+        bstr = open(path, "rb").read()
+        instance = cls()
+        b_pack = utils.BinPacker(bstr)
+        instance.meta_data = StringTableMetadata.from_binary_pack(b_pack=b_pack)
+
+        content = defaultdict(dict)
+        for row in range(instance.meta_data.num_entries):
+            key_hash = b_pack.get_uint32()
+            flags = b_pack.get_uint8()
+            length = b_pack.get_uint16()
+            val = b_pack.get_raw_bytes(length).decode('utf-8')
+            content["key_hash"][row] = key_hash
+            content["flags"][row] = flags
+            content["length"][row] = length
+            content["val"][row] = val
+        instance.entries = pd.DataFrame.from_dict(content)
+        return instance
 
     @classmethod
-    def from_csv(cls, path: str):
+    def read_csv(cls, path: str):
         content = pd.read_csv(path).to_dict()
         n = len(content["key_hash"])
         total_len = 0
@@ -64,21 +76,29 @@ class StringTable:
 
         num_entries = n
         str_len = total_len + num_entries
-        return cls(
-            meta_data=StringTableMetadata.from_empty(num_entries=num_entries, str_length=str_len),
-            content=content
-        )
+        instance = cls()
+        instance.meta_data = StringTableMetadata.from_empty(num_entries=num_entries, str_length=str_len)
+        instance.entries = content
+        return instance
 
-    def as_csv(self, path: str):
-        self.content.to_csv(path, index=False)
-
-    def as_stbl(self, path: str):
-        b_pack = utils.BinPacker(bstr=b'', mode='w')
-        self._repack_metadata(b_pack=b_pack)
-        self._repack_content(b_pack=b_pack)
+    def write(self, path: str):
+        b_pack = self.pack_bytes()
         with open(path, "wb") as file:
             file.write(b_pack.raw.getbuffer())
         b_pack.close()
+
+    def write_csv(self, path: str):
+        self.entries.to_csv(path, index=False)
+
+    @property
+    def content(self) -> bytes:
+        return self.pack_bytes().raw
+
+    def pack_bytes(self) -> utils.BinPacker:
+        b_pack = utils.BinPacker(bstr=b'', mode='w')
+        self._repack_metadata(b_pack=b_pack)
+        self._repack_content(b_pack=b_pack)
+        return b_pack
 
     def _repack_metadata(self, b_pack: utils.BinPacker):
         b_pack.put_raw_bytes(self.meta_data.magic)
@@ -89,7 +109,7 @@ class StringTable:
         b_pack.put_uint32(self.meta_data.str_length)
 
     def _repack_content(self, b_pack: utils.BinPacker):
-        contents = self.content.to_dict(orient="index")
+        contents = self.entries.to_dict(orient="index")
         for row, content in contents.items():
             b_pack.put_uint32(content.get("key_hash"))
             b_pack.put_uint8(content.get("flags"))
@@ -97,23 +117,9 @@ class StringTable:
             val = content.get("val")
             b_pack.put_raw_bytes("".encode("utf-8") if val != val else val.encode("utf-8"))
 
-    def _unpack_content(self, readable_pack: utils.BinPacker) -> pd.DataFrame:
-        content = defaultdict(dict)
-        for row in range(self.meta_data.num_entries):
-            key_hash = readable_pack.get_uint32()
-            flags = readable_pack.get_uint8() # What is in this? It's always 0.
-            length = readable_pack.get_uint16()
-            val = readable_pack.get_raw_bytes(length).decode('utf-8')
-            content["key_hash"][row] = key_hash
-            content["flags"][row] = flags
-            content["length"][row] = length
-            content["val"][row] = val
-        return pd.DataFrame.from_dict(content)
-
 
 def read_stbl(bstr):
     """Parse a string table (ID 0x220557DA)"""
-
     f = utils.BinPacker(bstr)
     if f.get_raw_bytes(4) != b'STBL':
         raise utils.FormatException("Bad magic")
@@ -123,10 +129,8 @@ def read_stbl(bstr):
     compressed = f.get_uint8()
     numEntries = f.get_uint64()
     f.off += 2
-    mnStringLength = f.get_uint32() # This is the total size of all
-                                    # the strings plus one null byte
-                                    # per string (to make the parsing
-                                    # code faster, probably)
+    mnStringLength = f.get_uint32()
+    # This is the total size of all the strings plus one null byte per string (to make the parsing code faster, probably)
 
     entries = {}
     size = 0
