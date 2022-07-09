@@ -25,12 +25,17 @@ if __name__ == "__main__":
     new = StringTable.read(path=dest_stbl)
     print(new.meta_data)
 
-    pkg = Package.from_package(src_pkg)
+    pkg = Package.read(src_pkg)
     pkg.list()
     pkg.export(instance_id=6664397830470224506, path=dest_gfx)
     resource = pkg.get(instance_id=6664397830470224506)
 
-    new_pkg = Package.create_empty(out_pkg)
+    src_pkg = os.path.join("tests/assets/", "Strings_ENG_US.package")
+    out_pkg = os.path.join("tests/assets/", "out2.package")
+
+    pkg = Package.read(src_pkg)
+    resource = pkg.get(instance_id=int("0054935F2685AD48", 16))
+    new_pkg = Package.open(out_pkg, overwrite=True)
     new_pkg.insert(resource=resource)
 
     pass

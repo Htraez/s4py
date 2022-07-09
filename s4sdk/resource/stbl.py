@@ -60,7 +60,9 @@ class StringTable(Resource):
             content["length"][row] = length
             content["val"][row] = val
         entries = pd.DataFrame.from_dict(content)
-        return cls(meta_data=meta_data, entries=entries)
+        instance = cls(meta_data=meta_data, entries=entries)
+        instance._bstr = bstr
+        return instance
 
     @classmethod
     def read_csv(cls, path: str):
@@ -95,7 +97,7 @@ class StringTable(Resource):
 
     @property
     def content(self) -> bytes:
-        return self.pack_bytes().raw
+        return self.pack_bytes().raw.getvalue()
 
     def pack_bytes(self) -> utils.BinPacker:
         b_pack = utils.BinPacker(bstr=b'', mode='w')

@@ -47,12 +47,12 @@ class Package:
         self.instances = [instance for instance in child_generator]
 
     @classmethod
-    def from_package(cls, path: str):
+    def read(cls, path: str):
         return cls(dbfile=open_package(path, mode="r"))
 
     @classmethod
-    def create_empty(cls, path: str):
-        if os.path.exists(path):
+    def open(cls, path: str, overwrite: bool = False):
+        if os.path.exists(path) and not overwrite:
             raise ValueError(f"Package file at {path} already exist")
         return cls(dbfile=open_package(path, mode="w"))
 
@@ -75,7 +75,9 @@ class Package:
                 instance_id.remove(instance.instance)
                 _resource = self.dbfile[instance]
                 if _resource.id.type == metadata.ResourceType.STBL.value:
-                    return StringTable.read_bytes(bstr=_resource.content)
+                    stbl = StringTable.read_bytes(bstr=_resource.content)
+                    stbl._instance = instance.instance
+                    return stbl
                 else:
                     return BinaryResource(
                         type=metadata.classify_type(instance.type),
