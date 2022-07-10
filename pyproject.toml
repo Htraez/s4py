@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "s4sdk"
-version = "0.2.0a1"
+version = "0.2.1a1"
 description = ""
 authors = ["Roy Chotechuang <htraexd@gmail.com>"]
 
