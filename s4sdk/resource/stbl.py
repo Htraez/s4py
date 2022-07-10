@@ -93,7 +93,7 @@ class StringTable(Resource):
         b_pack.close()
 
     def write_csv(self, path: str):
-        self.entries.to_csv(path, index=False)
+        self.entries.to_csv(path, index=False, encoding='utf-8-sig')
 
     @property
     def content(self) -> bytes:
