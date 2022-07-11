@@ -83,7 +83,7 @@ class StringTable(Resource):
         str_len = total_len + num_entries
 
         meta_data = StringTableMetadata.from_empty(num_entries=num_entries, str_length=str_len)
-        entries = content
+        entries = pd.DataFrame.from_dict(content)
         return cls(meta_data=meta_data, entries=entries)
 
     def write(self, path: str):
